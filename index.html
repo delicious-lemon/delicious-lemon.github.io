@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<body>
+  <canvas id="origImg" hidden></canvas>
+  <canvas id="newImg"></canvas>
+</body>
+<script>
+  const localImage = "santaclaus.jpg"; // edit this to load a different image
+
+  // we want to wait until the page loads then do some stuff
+  window.onload = function() {
+    // here we get a hold of the canvas element and get its context for the original and new image canvases
+    const c = document.getElementById("origImg");
+    const ctx = c.getContext("2d");
+    const d = document.getElementById("newImg");
+    const dtx = d.getContext("2d");
+
+    // make an Image object and set its source to the image we want to mess with
+    const img = new Image;
+    img.src = localImage;
+
+    // we want to wait until the image loads and do some stuff 
+    img.onload = function() {
+      
+      //this sets the canvases to have the width and height of the image
+      c.width = img.width;
+      c.height = img.height;
+      d.width = img.width;
+      d.height = img.height;
+
+      //this draws the image on the first canvas
+      ctx.drawImage(img, 0,0,img.width,img.height);
+
+      //we set the fill color of the second canvas to black and fill the whole canvas with that color
+      dtx.fillColor = "black";
+      dtx.fillRect(0,0,img.width,img.height);
+
+      //now we grab the image data from the original image
+      const imgData = ctx.getImageData(0,0,img.width,img.height);
+
+      //this data is in a ridiculous format - the data is in an RGBA one dimensional array... nice...
+      //that means it is a list of numbers something like this [r,g,b,a,r,g,b,a,...]
+      //where each number is between 0 and 255 so we will have to write some functions
+      //to extract pixel information at a point in the image from this monstrosity
+      //see the function getPixelAt below
+      const gpa = getPixelAt(imgData);
+
+      // to redraw the image pixel by pixel (slowly) you could do this
+      // for ( var x = 0; x < img.width; x ++ ) {
+      //   for ( var y = 0; y < img.width; y ++ ) {
+      //      const p = gpa(x,y); 
+      //      dtx.fillStyle = "rgba("+p[0]+","+p[1]+","+p[2]+","+(p[3]/255)+")";
+      //      dtx.fillRect( x, y, 1, 1 );
+      //   }
+      // }
+
+      //these are for random starting points
+      const rx = randX(imgData);
+      const ry = randY(imgData);
+      const nextXY = nextXYHOHOHO(imgData);
+
+      // let's get wiggly
+      const wiggleLength = 1800;
+      window.setInterval(() => {
+         var x = rx();
+         var y = ry();
+         const p = gpa(x,y); 
+         dtx.fillStyle = "rgba("+p[0]+","+p[1]+","+p[2]+","+(p[3]/255)+")";
+         dtx.fillRect( x, y, 1, 1 );
+         for ( var j = 0; j < wiggleLength; j++ ) {
+           const xy = nextXY(x,y);
+           x = xy[0];
+           y = xy[1];
+           dtx.fillRect( x, y, 1, 1 );
+         };
+         },50);
+    }; 
+
+    // this is a higher order function that takes an RGBA array and gives you back a function
+    // from (x,y) to [r,g,b,a]
+    const getPixelAt = (rgba) => (x,y) => {
+       const redIdx = y * (rgba.width * 4) + x * 4;
+       return [rgba.data[redIdx]
+              ,rgba.data[redIdx + 1]
+              ,rgba.data[redIdx + 2]
+              ,rgba.data[redIdx + 3]
+              ];
+    }
+
+    // let's just say the brightness is the sum of the RGB components
+    const brightness = (pix) => {
+      return pix[0] + pix[1] + pix[2];
+    }
+
+    // this and randY are higher order functions that take the imgData and give you a function
+    // that gives you a random X/Y when you call it
+    const randX = (rgba) => () => {
+      return  Math.floor(Math.random() * (rgba.width + 1)); 
+    }
+    const randY = (rgba) => () => {
+      return  Math.floor(Math.random() * (rgba.height + 1)); 
+    }
+
+    //if yer not jitterin yer not movin
+    const jitter = (v) => {
+      return v + (Math.floor(Math.random() * 11) -5);
+    }
+
+    //the magic function
+    const nextXYHOHOHO = (rgba) => (x,y) => {
+      var brightest = [x,y];
+      var brightestBrightness = -1;
+      for ( var i = -1; i <= 1; i++) {
+        for ( var j = -1; j <= 1; j++) {
+          if ( i == 0 && j == 0 ) continue;
+          const thisBrightness = brightness(getPixelAt(rgba)(jitter(x+i),jitter(y+j)));
+          if ( thisBrightness > brightestBrightness ) {
+            brightest = [x+i,y+j];
+            brightestBrightness = thisBrightness;
+          }
+        }
+      }
+      return brightest;
+    }
+  };
+</script>
+</html>
+
